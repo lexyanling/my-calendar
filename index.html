@@ -331,6 +331,29 @@
     background: var(--text-primary); color: var(--bg); border-color: var(--text-primary);
   }
   .note-btn.save:hover { opacity: 0.82; }
+
+  /* Touch devices: disable hover flip, enable class-based flip */
+  @media (hover: none) {
+    .day.has-note:hover .card-inner,
+    .day.has-photo:hover .card-inner { transform: none; }
+    .day:not(.has-note):not(.has-photo):hover .card-front { transform: none; }
+    .day.empty:hover .card-front { transform: none !important; }
+    .card-front:hover .upload-hint { opacity: 0; }
+    .day.is-flipped .card-inner { transform: rotateY(180deg); }
+  }
+
+  /* Mobile layout */
+  @media (max-width: 600px) {
+    body { padding: 20px 10px; }
+    header { margin-bottom: 24px; gap: 12px; flex-wrap: wrap; }
+    .month-label { font-size: 36px; }
+    .nav-controls { gap: 6px; }
+    .today-btn { padding: 6px 12px; font-size: 10px; }
+    .hint-row { display: none; }
+    .back-text { font-size: 10px; }
+    .back-date { font-size: 8px; }
+    .back-edit-btn { font-size: 8px; }
+  }
 </style>
 </head>
 <body>
@@ -415,6 +438,7 @@
   let photos = {};
   let notes = {};
   let activeDayKey = null;
+  const isTouch = window.matchMedia('(hover: none)').matches;
 
   // Load persisted data
   function loadStorage() {
@@ -527,16 +551,33 @@
       hint.className = 'upload-hint';
       if (hasPhoto) {
         hint.innerHTML = '<span class="hint-icon">&#9654;</span><span class="hint-text">View</span>';
-        front.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; openLightbox(key, d); });
       } else {
         hint.innerHTML = '<span class="hint-icon">+</span><span class="hint-text">Add photo</span>';
-        front.addEventListener('click', (e) => {
-          e.stopPropagation();
-          activeDayKey = key;
-          document.getElementById('fileInput').click();
-        });
       }
-      front.addEventListener('contextmenu', (e) => { e.preventDefault(); openNoteModal(key, d); });
+
+      if (isTouch) {
+        if (hasPhoto || hasNote) {
+          let pressTimer;
+          front.addEventListener('touchstart', () => { pressTimer = setTimeout(() => openNoteModal(key, d), 500); }, { passive: true });
+          front.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
+          front.addEventListener('touchmove', () => clearTimeout(pressTimer), { passive: true });
+          front.addEventListener('click', (e) => {
+            e.stopPropagation();
+            activeDayKey = key;
+            document.querySelectorAll('.day.is-flipped').forEach(el => { if (el !== cell) el.classList.remove('is-flipped'); });
+            cell.classList.toggle('is-flipped');
+          });
+        } else {
+          front.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; document.getElementById('fileInput').click(); });
+        }
+      } else {
+        if (hasPhoto) {
+          front.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; openLightbox(key, d); });
+        } else {
+          front.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; document.getElementById('fileInput').click(); });
+        }
+        front.addEventListener('contextmenu', (e) => { e.preventDefault(); openNoteModal(key, d); });
+      }
       front.appendChild(hint);
 
       // BACK
@@ -558,6 +599,15 @@
       backEdit.textContent = hasNote ? 'edit →' : 'add a note →';
       backEdit.addEventListener('click', (e) => { e.stopPropagation(); openNoteModal(key, d); });
       back.appendChild(backEdit);
+
+      if (hasPhoto) {
+        const backView = document.createElement('button');
+        backView.className = 'back-edit-btn';
+        backView.style.marginTop = '4px';
+        backView.textContent = 'view photo →';
+        backView.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; cell.classList.remove('is-flipped'); openLightbox(key, d); });
+        back.appendChild(backView);
+      }
 
       inner.appendChild(front);
       inner.appendChild(back);
@@ -696,6 +746,12 @@
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeLightbox(); closeNoteModal(); }
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.day')) {
+      document.querySelectorAll('.day.is-flipped').forEach(el => el.classList.remove('is-flipped'));
+    }
   });
 
   loadStorage();
