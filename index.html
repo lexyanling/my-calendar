@@ -161,7 +161,12 @@
     display: flex; flex-direction: column;
     padding: 12px 11px 10px;
     cursor: default;
+    pointer-events: none;
   }
+  .day.has-note:hover .card-back,
+  .day.has-photo:hover .card-back,
+  .day.is-flipped .card-back { pointer-events: auto; }
+  .day.is-flipped .card-front { pointer-events: none; }
 
   .back-date {
     font-size: 9px; letter-spacing: 0.1em;
@@ -558,20 +563,24 @@
       }
 
       if (isTouch) {
-        if (hasPhoto || hasNote) {
-          let pressTimer;
-          front.addEventListener('touchstart', () => { pressTimer = setTimeout(() => openNoteModal(key, d), 500); }, { passive: true });
-          front.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
-          front.addEventListener('touchmove', () => clearTimeout(pressTimer), { passive: true });
-          front.addEventListener('click', (e) => {
-            e.stopPropagation();
-            activeDayKey = key;
+        let pressTimer;
+        cell.addEventListener('touchstart', (e) => {
+          if (e.target.closest('.card-back')) return;
+          pressTimer = setTimeout(() => { activeDayKey = key; openNoteModal(key, d); }, 500);
+        }, { passive: true });
+        cell.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
+        cell.addEventListener('touchmove', () => clearTimeout(pressTimer), { passive: true });
+        cell.addEventListener('click', (e) => {
+          if (e.target.closest('.card-back')) return;
+          e.stopPropagation();
+          activeDayKey = key;
+          if (hasPhoto || hasNote) {
             document.querySelectorAll('.day.is-flipped').forEach(el => { if (el !== cell) el.classList.remove('is-flipped'); });
             cell.classList.toggle('is-flipped');
-          });
-        } else {
-          front.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; document.getElementById('fileInput').click(); });
-        }
+          } else {
+            document.getElementById('fileInput').click();
+          }
+        });
       } else {
         if (hasPhoto) {
           front.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; openLightbox(key, d); });
