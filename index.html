@@ -349,6 +349,26 @@
     .card-front:hover .upload-hint { opacity: 0; }
   }
 
+  /* Grid view */
+  #calGrid.grid-view { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  @media (min-width: 480px) { #calGrid.grid-view { grid-template-columns: repeat(3, 1fr); } }
+  #calGrid.grid-view .day { border-radius: 6px; overflow: hidden; }
+  .grid-add-hint {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: var(--text-muted);
+  }
+  .view-toggle {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px; letter-spacing: 0.1em;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 20px; cursor: pointer;
+    color: var(--text-secondary); transition: all 0.2s;
+  }
+  .view-toggle:hover { background: var(--hover); }
+
   /* Mobile layout */
   @media (max-width: 600px) {
     body { padding: 20px 10px; }
@@ -356,6 +376,7 @@
     .month-label { font-size: 36px; }
     .nav-controls { gap: 6px; }
     .today-btn { padding: 6px 12px; font-size: 10px; }
+    .view-toggle { padding: 6px 12px; font-size: 10px; }
     .hint-row { display: none; }
     .back-text { font-size: 10px; }
     .back-date { font-size: 8px; }
@@ -372,6 +393,7 @@
   </div>
   <div class="nav-controls">
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode"></button>
+    <button class="view-toggle" id="viewToggle" onclick="toggleView()">Grid</button>
     <button class="today-btn" onclick="goToday()">Today</button>
     <button class="nav-btn" onclick="changeMonth(-1)">&#8592;</button>
     <button class="nav-btn" onclick="changeMonth(1)">&#8594;</button>
@@ -446,6 +468,12 @@
   let notes = {};
   let activeDayKey = null;
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  let viewMode = isTouch ? 'grid' : 'calendar';
+
+  function toggleView() {
+    viewMode = viewMode === 'calendar' ? 'grid' : 'calendar';
+    render();
+  }
 
   // Load persisted data
   function loadStorage() {
@@ -498,132 +526,193 @@
     document.getElementById('monthLabel').textContent = MONTHS[viewMonth];
     document.getElementById('yearLabel').textContent = viewYear;
 
+    const weekdaysEl = document.querySelector('.weekdays');
     const grid = document.getElementById('calGrid');
     grid.innerHTML = '';
+
+    const toggleBtn = document.getElementById('viewToggle');
+    if (toggleBtn) toggleBtn.textContent = viewMode === 'calendar' ? 'Grid' : 'Cal';
 
     const firstDay = new Date(viewYear, viewMonth, 1).getDay();
     const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
 
-    for (let i = 0; i < firstDay; i++) {
-      const empty = document.createElement('div');
-      empty.className = 'day empty';
-      const inner = document.createElement('div');
-      inner.className = 'card-inner';
-      const front = document.createElement('div');
-      front.className = 'card-front';
-      inner.appendChild(front);
-      empty.appendChild(inner);
-      grid.appendChild(empty);
-    }
+    if (viewMode === 'grid') {
+      weekdaysEl.style.display = 'none';
+      grid.className = 'grid grid-view';
 
-    for (let d = 1; d <= daysInMonth; d++) {
-      const key = dayKey(viewYear, viewMonth, d);
-      const isToday = (d === current.getDate() && viewMonth === current.getMonth() && viewYear === current.getFullYear());
-      const hasPhoto = !!photos[key];
-      const hasNote = !!(notes[key] && notes[key].trim());
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = dayKey(viewYear, viewMonth, d);
+        const isToday = (d === current.getDate() && viewMonth === current.getMonth() && viewYear === current.getFullYear());
+        const hasPhoto = !!photos[key];
+        const hasNote = !!(notes[key] && notes[key].trim());
 
-      const cell = document.createElement('div');
-      cell.className = 'day'
-        + (isToday ? ' today' : '')
-        + (hasPhoto ? ' has-photo' : '')
-        + (hasNote ? ' has-note' : '');
-      cell.dataset.key = key;
+        const cell = document.createElement('div');
+        cell.className = 'day' + (isToday ? ' today' : '') + (hasPhoto ? ' has-photo' : '') + (hasNote ? ' has-note' : '');
+        cell.dataset.key = key;
 
-      const inner = document.createElement('div');
-      inner.className = 'card-inner';
+        if (hasPhoto) {
+          const img = document.createElement('img');
+          img.className = 'day-photo';
+          img.src = photos[key];
+          cell.appendChild(img);
+        } else {
+          const addHint = document.createElement('div');
+          addHint.className = 'grid-add-hint';
+          addHint.textContent = '+';
+          cell.appendChild(addHint);
+        }
 
-      // FRONT
-      const front = document.createElement('div');
-      front.className = 'card-front';
+        const numEl = document.createElement('div');
+        numEl.className = 'day-num';
+        numEl.textContent = d;
+        cell.appendChild(numEl);
 
-      if (hasPhoto) {
-        const img = document.createElement('img');
-        img.className = 'day-photo';
-        img.src = photos[key];
-        front.appendChild(img);
-      }
+        if (hasNote) {
+          const dot = document.createElement('div');
+          dot.className = 'note-dot';
+          cell.appendChild(dot);
+        }
 
-      const numEl = document.createElement('div');
-      numEl.className = 'day-num';
-      numEl.textContent = d;
-      front.appendChild(numEl);
-
-      if (hasNote) {
-        const dot = document.createElement('div');
-        dot.className = 'note-dot';
-        front.appendChild(dot);
-      }
-
-      const hint = document.createElement('div');
-      hint.className = 'upload-hint';
-      if (hasPhoto) {
-        hint.innerHTML = '<span class="hint-icon">&#9654;</span><span class="hint-text">View</span>';
-      } else {
-        hint.innerHTML = '<span class="hint-icon">+</span><span class="hint-text">Add photo</span>';
-      }
-
-      if (isTouch) {
-        let pressTimer;
-        cell.addEventListener('touchstart', (e) => {
-          if (e.target.closest('.card-back')) return;
-          pressTimer = setTimeout(() => { activeDayKey = key; openNoteModal(key, d); }, 500);
-        }, { passive: true });
-        cell.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
-        cell.addEventListener('touchmove', () => clearTimeout(pressTimer), { passive: true });
         cell.addEventListener('click', (e) => {
-          if (e.target.closest('.card-back')) return;
           e.stopPropagation();
           activeDayKey = key;
-          if (hasPhoto || hasNote) {
-            document.querySelectorAll('.day.is-flipped').forEach(el => { if (el !== cell) el.classList.remove('is-flipped'); });
-            cell.classList.toggle('is-flipped');
-          } else {
-            document.getElementById('fileInput').click();
-          }
+          if (hasPhoto) openLightbox(key, d);
+          else document.getElementById('fileInput').click();
         });
-      } else {
-        if (hasPhoto) {
-          front.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; openLightbox(key, d); });
+
+        if (isTouch) {
+          let pressTimer;
+          cell.addEventListener('touchstart', () => { pressTimer = setTimeout(() => { activeDayKey = key; openNoteModal(key, d); }, 500); }, { passive: true });
+          cell.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
+          cell.addEventListener('touchmove', () => clearTimeout(pressTimer), { passive: true });
         } else {
-          front.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; document.getElementById('fileInput').click(); });
+          cell.addEventListener('contextmenu', (e) => { e.preventDefault(); activeDayKey = key; openNoteModal(key, d); });
         }
-        front.addEventListener('contextmenu', (e) => { e.preventDefault(); openNoteModal(key, d); });
-      }
-      front.appendChild(hint);
 
-      // BACK
-      const back = document.createElement('div');
-      back.className = 'card-back';
-
-      const backDate = document.createElement('div');
-      backDate.className = 'back-date';
-      backDate.textContent = `${MONTHS[viewMonth].slice(0,3)} ${d}`;
-      back.appendChild(backDate);
-
-      const backText = document.createElement('div');
-      backText.className = 'back-text' + (hasNote ? '' : ' back-text-empty');
-      backText.textContent = hasNote ? notes[key] : 'no note yet';
-      back.appendChild(backText);
-
-      const backEdit = document.createElement('button');
-      backEdit.className = 'back-edit-btn';
-      backEdit.textContent = hasNote ? 'edit →' : 'add a note →';
-      backEdit.addEventListener('click', (e) => { e.stopPropagation(); openNoteModal(key, d); });
-      back.appendChild(backEdit);
-
-      if (hasPhoto) {
-        const backView = document.createElement('button');
-        backView.className = 'back-edit-btn';
-        backView.style.marginTop = '4px';
-        backView.textContent = 'view photo →';
-        backView.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; cell.classList.remove('is-flipped'); openLightbox(key, d); });
-        back.appendChild(backView);
+        grid.appendChild(cell);
       }
 
-      inner.appendChild(front);
-      inner.appendChild(back);
-      cell.appendChild(inner);
-      grid.appendChild(cell);
+    } else {
+      weekdaysEl.style.display = '';
+      grid.className = 'grid';
+
+      for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'day empty';
+        const inner = document.createElement('div');
+        inner.className = 'card-inner';
+        const front = document.createElement('div');
+        front.className = 'card-front';
+        inner.appendChild(front);
+        empty.appendChild(inner);
+        grid.appendChild(empty);
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = dayKey(viewYear, viewMonth, d);
+        const isToday = (d === current.getDate() && viewMonth === current.getMonth() && viewYear === current.getFullYear());
+        const hasPhoto = !!photos[key];
+        const hasNote = !!(notes[key] && notes[key].trim());
+
+        const cell = document.createElement('div');
+        cell.className = 'day'
+          + (isToday ? ' today' : '')
+          + (hasPhoto ? ' has-photo' : '')
+          + (hasNote ? ' has-note' : '');
+        cell.dataset.key = key;
+
+        const inner = document.createElement('div');
+        inner.className = 'card-inner';
+
+        const front = document.createElement('div');
+        front.className = 'card-front';
+
+        if (hasPhoto) {
+          const img = document.createElement('img');
+          img.className = 'day-photo';
+          img.src = photos[key];
+          front.appendChild(img);
+        }
+
+        const numEl = document.createElement('div');
+        numEl.className = 'day-num';
+        numEl.textContent = d;
+        front.appendChild(numEl);
+
+        if (hasNote) {
+          const dot = document.createElement('div');
+          dot.className = 'note-dot';
+          front.appendChild(dot);
+        }
+
+        const hint = document.createElement('div');
+        hint.className = 'upload-hint';
+        hint.innerHTML = hasPhoto
+          ? '<span class="hint-icon">&#9654;</span><span class="hint-text">View</span>'
+          : '<span class="hint-icon">+</span><span class="hint-text">Add photo</span>';
+
+        if (isTouch) {
+          let pressTimer;
+          cell.addEventListener('touchstart', (e) => {
+            if (e.target.closest('.card-back')) return;
+            pressTimer = setTimeout(() => { activeDayKey = key; openNoteModal(key, d); }, 500);
+          }, { passive: true });
+          cell.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
+          cell.addEventListener('touchmove', () => clearTimeout(pressTimer), { passive: true });
+          cell.addEventListener('click', (e) => {
+            if (e.target.closest('.card-back')) return;
+            e.stopPropagation();
+            activeDayKey = key;
+            if (hasPhoto || hasNote) {
+              document.querySelectorAll('.day.is-flipped').forEach(el => { if (el !== cell) el.classList.remove('is-flipped'); });
+              cell.classList.toggle('is-flipped');
+            } else {
+              document.getElementById('fileInput').click();
+            }
+          });
+        } else {
+          if (hasPhoto) {
+            front.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; openLightbox(key, d); });
+          } else {
+            front.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; document.getElementById('fileInput').click(); });
+          }
+          front.addEventListener('contextmenu', (e) => { e.preventDefault(); openNoteModal(key, d); });
+        }
+        front.appendChild(hint);
+
+        const back = document.createElement('div');
+        back.className = 'card-back';
+
+        const backDate = document.createElement('div');
+        backDate.className = 'back-date';
+        backDate.textContent = `${MONTHS[viewMonth].slice(0,3)} ${d}`;
+        back.appendChild(backDate);
+
+        const backText = document.createElement('div');
+        backText.className = 'back-text' + (hasNote ? '' : ' back-text-empty');
+        backText.textContent = hasNote ? notes[key] : 'no note yet';
+        back.appendChild(backText);
+
+        const backEdit = document.createElement('button');
+        backEdit.className = 'back-edit-btn';
+        backEdit.textContent = hasNote ? 'edit →' : 'add a note →';
+        backEdit.addEventListener('click', (e) => { e.stopPropagation(); openNoteModal(key, d); });
+        back.appendChild(backEdit);
+
+        if (hasPhoto) {
+          const backView = document.createElement('button');
+          backView.className = 'back-edit-btn';
+          backView.style.marginTop = '4px';
+          backView.textContent = 'view photo →';
+          backView.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; cell.classList.remove('is-flipped'); openLightbox(key, d); });
+          back.appendChild(backView);
+        }
+
+        inner.appendChild(front);
+        inner.appendChild(back);
+        cell.appendChild(inner);
+        grid.appendChild(cell);
+      }
     }
 
     const count = Object.keys(photos).filter(k => k.startsWith(`${viewYear}-${String(viewMonth+1).padStart(2,'0')}`)).length;
