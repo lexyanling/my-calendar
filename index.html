@@ -136,7 +136,8 @@
     transition: transform 0.5s cubic-bezier(.4,0,.2,1);
     border-radius: 2px;
   }
-  .day.has-note:hover .card-inner { transform: rotateY(180deg); }
+  .day.has-note:hover .card-inner,
+  .day.has-photo:hover .card-inner { transform: rotateY(180deg); }
 
   .card-front, .card-back {
     position: absolute; inset: 0;
@@ -150,7 +151,7 @@
     cursor: pointer;
   }
   /* scale only on non-note cards */
-  .day:not(.has-note):hover .card-front { transform: scale(1.025); z-index: 2; transition: transform 0.12s; }
+  .day:not(.has-note):not(.has-photo):hover .card-front { transform: scale(1.025); z-index: 2; transition: transform 0.12s; }
   .day.empty .card-front { background: transparent; cursor: default; }
   .day.empty:hover .card-front { transform: none !important; }
 
@@ -187,6 +188,7 @@
     transition: opacity 0.15s; flex-shrink: 0;
   }
   .back-edit-btn:hover { opacity: 0.75; }
+  .back-text-empty { opacity: 0.3 !important; font-style: italic; }
 
   /* Note dot indicator */
   .note-dot {
@@ -547,13 +549,13 @@
       back.appendChild(backDate);
 
       const backText = document.createElement('div');
-      backText.className = 'back-text';
-      backText.textContent = notes[key] || '';
+      backText.className = 'back-text' + (hasNote ? '' : ' back-text-empty');
+      backText.textContent = hasNote ? notes[key] : 'no note yet';
       back.appendChild(backText);
 
       const backEdit = document.createElement('button');
       backEdit.className = 'back-edit-btn';
-      backEdit.textContent = 'edit →';
+      backEdit.textContent = hasNote ? 'edit →' : 'add a note →';
       backEdit.addEventListener('click', (e) => { e.stopPropagation(); openNoteModal(key, d); });
       back.appendChild(backEdit);
 
