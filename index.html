@@ -332,14 +332,16 @@
   }
   .note-btn.save:hover { opacity: 0.82; }
 
-  /* Touch devices: disable hover flip, enable class-based flip */
+  /* Class-based flip for touch devices */
+  .day.is-flipped .card-inner { transform: rotateY(180deg); }
+
+  /* Touch devices: disable hover effects */
   @media (hover: none) {
     .day.has-note:hover .card-inner,
     .day.has-photo:hover .card-inner { transform: none; }
     .day:not(.has-note):not(.has-photo):hover .card-front { transform: none; }
     .day.empty:hover .card-front { transform: none !important; }
     .card-front:hover .upload-hint { opacity: 0; }
-    .day.is-flipped .card-inner { transform: rotateY(180deg); }
   }
 
   /* Mobile layout */
@@ -438,7 +440,7 @@
   let photos = {};
   let notes = {};
   let activeDayKey = null;
-  const isTouch = window.matchMedia('(hover: none)').matches;
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
   // Load persisted data
   function loadStorage() {
