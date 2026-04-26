@@ -160,7 +160,7 @@
     transform: rotateY(180deg);
     display: flex; flex-direction: column;
     padding: 12px 11px 10px;
-    cursor: default;
+    cursor: pointer;
     pointer-events: none;
   }
   .day.has-note:hover .card-back,
@@ -693,20 +693,13 @@
         backText.textContent = hasNote ? notes[key] : 'no note yet';
         back.appendChild(backText);
 
-        const backEdit = document.createElement('button');
-        backEdit.className = 'back-edit-btn';
-        backEdit.textContent = hasNote ? 'edit →' : 'add a note →';
-        backEdit.addEventListener('click', (e) => { e.stopPropagation(); openNoteModal(key, d); });
-        back.appendChild(backEdit);
-
-        if (hasPhoto) {
-          const backView = document.createElement('button');
-          backView.className = 'back-edit-btn';
-          backView.style.marginTop = '4px';
-          backView.textContent = 'view photo →';
-          backView.addEventListener('click', (e) => { e.stopPropagation(); activeDayKey = key; cell.classList.remove('is-flipped'); openLightbox(key, d); });
-          back.appendChild(backView);
-        }
+        back.addEventListener('click', (e) => {
+          e.stopPropagation();
+          activeDayKey = key;
+          cell.classList.remove('is-flipped');
+          if (hasPhoto) openLightbox(key, d);
+          else openNoteModal(key, d);
+        });
 
         inner.appendChild(front);
         inner.appendChild(back);
