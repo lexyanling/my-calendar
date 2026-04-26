@@ -468,7 +468,7 @@
   let notes = {};
   let activeDayKey = null;
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-  let viewMode = isTouch ? 'grid' : 'calendar';
+  let viewMode = 'calendar';
 
   function toggleView() {
     viewMode = viewMode === 'calendar' ? 'grid' : 'calendar';
