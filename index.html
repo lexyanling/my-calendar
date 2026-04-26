@@ -399,6 +399,7 @@
 </div>
 
 <input type="file" id="fileInput" accept="image/*" onchange="handleFile(event)">
+<canvas id="fwCanvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;"></canvas>
 
 <script>
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -493,6 +494,7 @@
         + (isToday ? ' today' : '')
         + (hasPhoto ? ' has-photo' : '')
         + (hasNote ? ' has-note' : '');
+      cell.dataset.key = key;
 
       const inner = document.createElement('div');
       inner.className = 'card-inner';
@@ -582,9 +584,58 @@
     const file = e.target.files[0];
     if (!file || !activeDayKey) return;
     const reader = new FileReader();
-    reader.onload = ev => { photos[activeDayKey] = ev.target.result; savePhotos(); render(); };
+    reader.onload = ev => { photos[activeDayKey] = ev.target.result; savePhotos(); render(); launchFireworks(); };
     reader.readAsDataURL(file);
     e.target.value = '';
+  }
+
+  function launchFireworks() {
+    const canvas = document.getElementById('fwCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let cx = canvas.width / 2, cy = canvas.height / 2;
+    const cell = document.querySelector(`[data-key="${activeDayKey}"]`);
+    if (cell) {
+      const r = cell.getBoundingClientRect();
+      cx = r.left + r.width / 2;
+      cy = r.top + r.height / 2;
+    }
+
+    const colors = ['#FF6B6B','#FFD93D','#6BCB77','#4D96FF','#FF9FF3','#FFA94D'];
+    const particles = Array.from({ length: 56 }, (_, i) => {
+      const angle = (Math.PI * 2 * i) / 56;
+      const speed = 2.5 + Math.random() * 4.5;
+      return {
+        x: cx, y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 1.5,
+        alpha: 1,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: 2.5 + Math.random() * 2.5
+      };
+    });
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let alive = false;
+      for (const p of particles) {
+        if (p.alpha <= 0) continue;
+        alive = true;
+        p.x += p.vx; p.y += p.vy;
+        p.vy += 0.12;
+        p.alpha -= 0.018;
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (alive) requestAnimationFrame(animate);
+      else { ctx.globalAlpha = 1; ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    }
+    animate();
   }
 
   function openLightbox(key, day) {
